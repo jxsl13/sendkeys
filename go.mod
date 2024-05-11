@@ -1,6 +1,6 @@
 module github.com/jxsl13/sendkeys
 
-go 1.17
+go 1.18
 
 require (
 	github.com/eiannone/keyboard v0.0.0-20220611211555-0d226195f203
