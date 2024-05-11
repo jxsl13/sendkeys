@@ -1,55 +1,14 @@
 package sendkeys
 
 import (
+	"context"
+	"errors"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/eiannone/keyboard"
 )
-
-func listenForKeys(t *testing.T, ret chan string) {
-	keysEvents, err := keyboard.GetKeys(10)
-	if err != nil {
-		panic(err)
-	}
-
-	t.Cleanup(func() {
-		_ = keyboard.Close()
-	})
-
-	for {
-		var s = ""
-		event := <-keysEvents
-		if event.Err != nil {
-			t.Fatalf(event.Err.Error())
-		}
-		t.Logf("Key pressed: %s", string(event.Rune))
-
-		s = string(event.Rune)
-
-		if event.Key == keyboard.KeySpace {
-			t.Log("spacebar detected")
-			s = " "
-		}
-		if len(s) > 0 {
-			ret <- s
-		}
-	}
-}
-
-func strTo(teststr string, t *testing.T) {
-	split := strings.Split(teststr, "")
-	k, err := NewKBWrapWithOptions(Noisy, NoDelay)
-	if err != nil {
-		t.Fatalf(err.Error())
-	}
-	keys := k.strToKeys(teststr)
-	if len(keys) != len(split) {
-		t.Fatalf("length of mapped keys: %d, wanted length of string: %d", len(keys), len(split))
-	}
-	t.Logf("string: %s, keys: %#v", teststr, keys)
-}
 
 func Test_strToKeys(t *testing.T) {
 	strTo("yeet", t)
@@ -88,87 +47,128 @@ func Test_NewKBWrapWithOptions(t *testing.T) {
 	opts = nil
 }
 
-func Test_sendkeys(t *testing.T) {
-	ret := make(chan string)
-	go listenForKeys(t, ret)
+func TestSendkeysAlphaUpper(t *testing.T) {
+	ret := make(chan rune)
+	//go listenForKeys(t, ret)
 	k, err := NewKBWrapWithOptions(Noisy)
 	if err != nil {
 		t.Fatal(err)
 	}
-
-	testsend(t, k, "yeet", ret)
-	testsend(t, k, "YeeT", ret)
-	testsend(t, k, "Yeet!", ret)
-	testsend(t, k, "\\'`/337!'\\", ret)
-	testsend(t, k, "Welcome to yeet town, buddy!", ret)
-	testsend(t, k, "`~!@#$%^&*()-_=+';:<>/\\,.|{}[]`~, you feel me dawg?", ret)
+	testsend(t, k, "ABCDEFGHIJKLMNOPQRSTUVWXYZ", ret)
 }
 
-func testsend(t *testing.T, k *KBWrap, teststr string, ret chan string) {
+func TestSendkeysAlphaLower(t *testing.T) {
+	ret := make(chan rune)
+	//go listenForKeys(t, ret)
+	k, err := NewKBWrapWithOptions(Noisy)
+	if err != nil {
+		t.Fatal(err)
+	}
+	testsend(t, k, "abcdefghijklmnopqrstuvwxyz", ret)
+}
+
+func TestSendkeysNumeric(t *testing.T) {
+	ret := make(chan rune)
+	//go listenForKeys(t, ret)
+	k, err := NewKBWrapWithOptions(Noisy)
+	if err != nil {
+		t.Fatal(err)
+	}
+	testsend(t, k, "1234567890", ret)
+}
+
+func TestSendkeysSymbols(t *testing.T) {
+	ret := make(chan rune)
+	//go listenForKeys(t, ret)
+	k, err := NewKBWrapWithOptions()
+	if err != nil {
+		t.Fatal(err)
+	}
+	time.Sleep(5 * time.Second)
+	testsend(t, k, "-_=+[{]}'\"`~\\|,<.>/? !@#$%^&*();:", ret)
+}
+
+func testsend(t *testing.T, k *KBWrap, teststr string, ret chan rune) {
 
 	var (
-		count = 0
-		chars []string
+		expected      = len([]rune(teststr))
+		count         = 0
+		chars         []rune
+		ctx, cancel   = context.WithCancelCause(context.Background())
+		cancelTimeout context.CancelFunc
 	)
+	ctx, cancelTimeout = context.WithTimeout(ctx, 5*time.Second)
+	defer cancel(context.Canceled)
+	defer cancelTimeout()
 
-	go func() {
-		// t.Logf("[receiver(%s)] go func() start", teststr)
-		// defer t.Logf("[receiver(%s)] go func() return", teststr)
-		for {
-			select {
-			case chr := <-ret:
-				chars = append(chars, chr)
-				count++
-				time.Sleep(10 * time.Millisecond)
-			default:
-				time.Sleep(10 * time.Millisecond)
-				if count >= len(teststr) {
-					return
-				}
+	go func(s string) {
+		err := k.Type(s)
+		if err != nil {
+			cancel(err)
+		}
+	}(teststr)
+
+loop:
+	for {
+		select {
+		case <-ctx.Done():
+			t.Error(ctx.Err())
+			return
+		case chr, ok := <-ret:
+			if !ok {
+				cancel(errors.New("ret channel closed unexpectedly"))
+				t.Error(ctx.Err())
+				return
+			}
+			chars = append(chars, chr)
+			count++
+
+			if len(chars) >= expected {
+				break loop
 			}
 		}
-	}()
-
-	//	t.Log("sleeping for 250ms...")
-	//	time.Sleep(250 * time.Millisecond)
-
-	err := k.Type(teststr)
-	if err != nil {
-		t.Fatalf(err.Error())
 	}
 
-	var tick = 0
-	var brk = false
-	for {
-		if brk {
-			break
-		}
-		switch {
-		case tick >= 5:
-			t.Logf("FAIL: took too long")
-			t.Fail()
-			brk = true
-			break
-		case count >= len(teststr):
-			brk = true
-			break
-		default:
-			time.Sleep(1 * time.Second)
-			tick++
-		}
-	}
-
-	var final = strings.Join(chars, "")
-	final = strings.TrimSpace(final)
-
+	var final = string(chars)
 	if final != teststr {
-		t.Logf("[FAIL] Have: %s, Wanted: %s", final, teststr)
-		t.Fail()
+		t.Errorf("[FAIL] Have: %s, Wanted: %s", final, teststr)
 	} else {
 		t.Logf(
 			"[SUCCESS] got %d characters: %s",
 			count, final,
 		)
 	}
-	final = ""
+}
+
+func listenForKeys(t *testing.T, ret chan rune) {
+
+	keysEvents, err := keyboard.GetKeys(1)
+	if err != nil {
+		t.Logf("failed to listen to keyboard: %v, closing ret channel", err)
+		close(ret)
+	}
+	defer keyboard.Close()
+
+	for event := range keysEvents {
+		if event.Err != nil {
+			t.Logf("failed to listen to keyboard events: %v, closing ret channel", event.Err)
+			close(ret)
+		}
+		t.Logf("Key pressed: %v (%d)", event.Rune, event.Key)
+		ret <- event.Rune
+	}
+
+}
+
+func strTo(teststr string, t *testing.T) {
+	split := strings.Split(teststr, "")
+	k, err := NewKBWrapWithOptions(Noisy, NoDelay)
+	if err != nil {
+		t.Fatalf(err.Error())
+	}
+	keys := k.strToKeys(teststr)
+	if len(keys) != len(split) {
+		t.Fatalf("length of mapped keys: %d, wanted length of string: %d", len(keys), len(split))
+	}
+	t.Logf("string: %s, keys: %#v", teststr, keys)
 }

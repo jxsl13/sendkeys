@@ -2,6 +2,8 @@ package sendkeys
 
 import (
 	"errors"
+	"runtime"
+	"sync"
 	"time"
 
 	kbd "github.com/micmonay/keybd_event"
@@ -9,21 +11,29 @@ import (
 
 // KBWrap is a wrapper for the keybd_event library for convenience
 type KBWrap struct {
-	d        kbd.KeyBonding
-	errors   []error
-	stubborn bool
-	noisy    bool
-	random   bool
-	nodelay  bool
+	d              kbd.KeyBonding
+	errors         []error
+	stubborn       bool
+	noisy          bool
+	random         bool
+	nodelay        bool
+	beforeDuration time.Duration
+	downDuration   time.Duration // how long the key is pressed
+	afterDuration  time.Duration // how long to wait after a key press
+
+	mu sync.Mutex
 }
 
 func newKbw() *KBWrap {
 	return &KBWrap{
-		errors:   []error{},
-		stubborn: false,
-		noisy:    false,
-		random:   false,
-		nodelay:  false,
+		errors:         []error{},
+		stubborn:       false,
+		noisy:          false,
+		random:         false,
+		nodelay:        false,
+		beforeDuration: 0 * time.Millisecond,
+		downDuration:   40 * time.Millisecond,
+		afterDuration:  10 * time.Millisecond,
 	}
 }
 
@@ -36,9 +46,23 @@ func NewKBWrapWithOptions(opts ...KBOpt) (kbw *KBWrap, err error) {
 	if err != nil {
 		return nil, err
 	}
-	kbw.processOptions(opts...)
+	for _, opt := range opts {
+		opt(kbw)
+	}
+
 	kbw.linDelay()
 	return
+}
+
+func (kb *KBWrap) linDelay() {
+	if kb.nodelay {
+		return
+	}
+	// For linux, it is very important to wait 2 seconds
+	// kayos note: idfk why tho, this is according to keybd_event author
+	if runtime.GOOS == "linux" {
+		time.Sleep(2 * time.Second)
+	}
 }
 
 func (kb *KBWrap) down() {
@@ -58,11 +82,7 @@ func (kb *KBWrap) up() {
 // Default wait time is 10 milliseconds.
 func (kb *KBWrap) press() {
 	kb.down()
-	if kb.random {
-		snoozeMS(rng(25))
-	} else {
-		time.Sleep(10 * time.Millisecond)
-	}
+	time.Sleep(kb.downDuration)
 	kb.up()
 }
 
@@ -84,24 +104,36 @@ func (kb *KBWrap) only(k int) {
 // Escape presses the escape key.
 // All other keys will be cleared.
 func (kb *KBWrap) Escape() {
+	kb.mu.Lock()
+	defer kb.mu.Unlock()
+
 	kb.only(kbd.VK_ESC)
 }
 
 // Tab presses the tab key.
 // All other keys will be cleared.
 func (kb *KBWrap) Tab() {
+	kb.mu.Lock()
+	defer kb.mu.Unlock()
+
 	kb.only(kbd.VK_TAB)
 }
 
 // Enter presses the enter key.
 // All other keys will be cleared.
 func (kb *KBWrap) Enter() {
+	kb.mu.Lock()
+	defer kb.mu.Unlock()
+
 	kb.only(kbd.VK_ENTER)
 }
 
 // BackSpace presses the backspace key.
 // All other keys will be cleared.
 func (kb *KBWrap) BackSpace() {
+	kb.mu.Lock()
+	defer kb.mu.Unlock()
+
 	kb.only(backspace)
 }
 
@@ -109,16 +141,19 @@ func (kb *KBWrap) BackSpace() {
 // Check the exported Symbol map for non-alphanumeric keys.
 func (kb *KBWrap) Type(s string) error {
 	keys := kb.strToKeys(s)
-	for _, key := range keys {
-		if !kb.check() {
-			return errors.New(compoundErr(kb.errors))
-		}
-		if key < 0 {
-			kb.d.HasSHIFT(true)
-			key = abs(key)
-		}
+	if !kb.check() {
+		return errors.Join(kb.errors...)
+	}
 
-		kb.set(key)
+	kb.mu.Lock()
+	defer kb.mu.Unlock()
+
+	for _, key := range keys {
+		kb.d.HasALT(key.ModifierALT)
+		kb.d.HasSuper(key.ModifierSuper)
+		kb.d.HasCTRL(key.ModifierCTRL)
+		kb.d.HasSHIFT(key.ModifierSHIFT)
+		kb.set(key.Code)
 		kb.press()
 		kb.clr()
 	}
