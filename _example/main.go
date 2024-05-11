@@ -7,7 +7,7 @@ import (
 	"strconv"
 	"time"
 
-	"git.tcp.direct/kayos/sendkeys"
+	"github.com/jxsl13/sendkeys"
 )
 
 var (

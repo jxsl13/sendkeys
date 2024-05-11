@@ -1,5 +1,5 @@
 # sendkeys
-[![GoDoc](https://godoc.org/git.tcp.direct/kayos/sendkeys?status.svg)](https://godoc.org/git.tcp.direct/kayos/sendkeys)
+[![GoDoc](https://godoc.org/github.com/jxsl13/sendkeys?status.svg)](https://godoc.org/github.com/jxsl13/sendkeys)
 [![Go Report Card](https://goreportcard.com/badge/github.com/yunginnanet/sendkeys)](https://goreportcard.com/report/github.com/yunginnanet/sendkeys)
 
 ## Summary
@@ -248,7 +248,7 @@ sendkeys is in early development. tests pass on a real machine, but I'm done try
     sendkeys_test.go:171: got 52 characters: `~!@#$%^&*()-_=+';:<>/\,.|{}[]`~, you feel me dawg?
 --- PASS: Test_sendkeys (6.09s)
 PASS
-ok  	git.tcp.direct/kayos/sendkeys	8.139s
+ok  	github.com/jxsl13/sendkeys	8.139s
 
 ```
 

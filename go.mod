@@ -1,4 +1,4 @@
-module git.tcp.direct/kayos/sendkeys
+module github.com/jxsl13/sendkeys
 
 go 1.17
 
