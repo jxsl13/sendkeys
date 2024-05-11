@@ -81,9 +81,15 @@ func (kb *KBWrap) up() {
 // press presses a key from the queue, waits, and then releases.
 // Default wait time is 10 milliseconds.
 func (kb *KBWrap) press() {
+	if kb.beforeDuration > 0 {
+		time.Sleep(kb.beforeDuration)
+	}
 	kb.down()
 	time.Sleep(kb.downDuration)
 	kb.up()
+	if kb.afterDuration > 0 {
+		time.Sleep(kb.afterDuration)
+	}
 }
 
 func (kb *KBWrap) set(keys ...int) {
