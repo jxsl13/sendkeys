@@ -79,6 +79,8 @@ func selectMultiStep(cfg Config) (sendkeys.KeyCode, error) {
 
 	code := codes[0]
 	if promptContinue(fmt.Sprintf("Print final character one last time (%s)?", code)) {
+		fmt.Println("printing in 5 seconds...")
+		time.Sleep(5 * time.Second)
 		kb.TypeRaw(code)
 	}
 
