@@ -21,6 +21,8 @@ type KBWrap struct {
 	downDuration   time.Duration // how long the key is pressed
 	afterDuration  time.Duration // how long to wait after a key press
 
+	keyMap KeyMap
+
 	mu sync.Mutex
 }
 
@@ -34,6 +36,7 @@ func newKbw() *KBWrap {
 		beforeDuration: 0 * time.Millisecond,
 		downDuration:   40 * time.Millisecond,
 		afterDuration:  10 * time.Millisecond,
+		keyMap:         defaultKeyMap(),
 	}
 }
 
@@ -164,4 +167,17 @@ func (kb *KBWrap) Type(s string) error {
 		kb.clr()
 	}
 	return nil
+}
+
+func (kb *KBWrap) TypeRaw(key KeyCode) {
+	kb.mu.Lock()
+	defer kb.mu.Unlock()
+
+	kb.d.HasALT(key.ModifierALT)
+	kb.d.HasSuper(key.ModifierSuper)
+	kb.d.HasCTRL(key.ModifierCTRL)
+	kb.d.HasSHIFT(key.ModifierSHIFT)
+	kb.set(key.Code)
+	kb.press()
+	kb.clr()
 }

@@ -57,6 +57,22 @@ func TestSendkeysAlphaUpper(t *testing.T) {
 	testsend(t, k, "ABCDEFGHIJKLMNOPQRSTUVWXYZ", ret)
 }
 
+func TestType(t *testing.T) {
+
+	k, err := NewKBWrapWithOptions(
+		WithKeyMap(KeyMapLinuxQuartz()),
+		KeystrokeDuration(40*time.Millisecond),
+		DelayAfter(100*time.Millisecond),
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	time.Sleep(5 * time.Second)
+	err = k.Type("1234567890qwertzuioasdfghjklyxcvbnm,<.*-_.,:;")
+	if err != nil {
+		t.Fatal(err)
+	}
+}
 func TestSendkeysAlphaLower(t *testing.T) {
 	ret := make(chan rune)
 	//go listenForKeys(t, ret)

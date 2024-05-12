@@ -1,6 +1,8 @@
 package sendkeys
 
-import "time"
+import (
+	"time"
+)
 
 // KBOpt are KBWrap for our wrapper
 type KBOpt func(*KBWrap)
@@ -43,5 +45,11 @@ func KeystrokeDuration(d time.Duration) KBOpt {
 func DelayAfter(d time.Duration) KBOpt {
 	return func(k *KBWrap) {
 		k.afterDuration = d
+	}
+}
+
+func WithKeyMap(keyMap KeyMap) KBOpt {
+	return func(k *KBWrap) {
+		k.keyMap = keyMap
 	}
 }

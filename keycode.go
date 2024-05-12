@@ -1,35 +1,42 @@
 package sendkeys
 
-type keyCode struct {
-	Code          int
-	ModifierSuper bool // WIN/CMD/MOD
-	ModifierALT   bool // Alt/Option
-	ModifierCTRL  bool
-	ModifierSHIFT bool
+import "encoding/json"
+
+type KeyCode struct {
+	Code          int  `json:"code"`
+	ModifierSuper bool `json:"super"` // WIN/CMD/MOD
+	ModifierALT   bool `json:"alt"`   // Alt/Option
+	ModifierCTRL  bool `json:"ctrl"`
+	ModifierSHIFT bool `json:"shift"`
 }
 
-func simpleKeyCode(code int) keyCode {
-	return keyCode{
+func (k KeyCode) String() string {
+	data, _ := json.Marshal(k)
+	return string(data)
+}
+
+func SimpleKeyCode(code int) KeyCode {
+	return KeyCode{
 		Code: code,
 	}
 }
 
-func shiftKeyCode(code int) keyCode {
-	return keyCode{
+func ShiftKeyCode(code int) KeyCode {
+	return KeyCode{
 		Code:          code,
 		ModifierSHIFT: true,
 	}
 }
 
-func altKeyCode(code int) keyCode {
-	return keyCode{
+func AltKeyCode(code int) KeyCode {
+	return KeyCode{
 		Code:        code,
 		ModifierALT: true,
 	}
 }
 
-func altShiftKeyCode(code int) keyCode {
-	return keyCode{
+func AltShiftKeyCode(code int) KeyCode {
+	return KeyCode{
 		Code:          code,
 		ModifierALT:   true,
 		ModifierSHIFT: true,
